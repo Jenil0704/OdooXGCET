@@ -1,20 +1,66 @@
 // Login.jsx
 import React, { useState } from "react";
+import authApi from "../api/auth.js";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const Login = () => {
+  const navigate = useNavigate();
+  const { login, isAuthenticated } = useAuth();
   const [formData, setFormData] = useState({
     loginId: "",
     password: "",
   });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Redirect if already authenticated
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      if (user.role === 'HR') {
+        navigate('/admin-dashboard');
+      } else if (user.role === 'EMPLOYEE') {
+        navigate('/employee-dashboard');
+      }
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    setError("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Login Data Submitted:", formData);
-    // Add your login API call here
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await authApi.login(formData.loginId, formData.password);
+      
+      if (response.success && response.data) {
+        // Store user data
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        
+        // Login through context
+        login(response.data.user, response.data.token);
+        
+        // Redirect based on role
+        if (response.data.user.role === 'HR') {
+          navigate('/admin-dashboard');
+        } else if (response.data.user.role === 'EMPLOYEE') {
+          navigate('/employee-dashboard');
+        } else {
+          navigate('/');
+        }
+      }
+    } catch (error) {
+      setError(error.message || "Login failed. Please check your credentials.");
+      console.error("Login failed:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -48,11 +94,18 @@ const Login = () => {
             />
           </div>
 
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+              {error}
+            </div>
+          )}
+
           <button
             type="submit"
-            className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition-colors"
+            disabled={loading}
+            className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            Login
+            {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
 

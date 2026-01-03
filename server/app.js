@@ -3,8 +3,13 @@ const app = express();
 const dotenv = require('dotenv');
 const connectDB = require('./src/config/mongo.config.js');
 const authRoutes = require('./src/routes/authRoutes');
-
+const cors = require('cors');
 dotenv.config();
+
+app.use(cors({
+    origin : process.env.CLIENT_URL,
+    credentials : true
+}));
 
 // Middleware
 app.use(express.json());
